@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  mysql :
+    image: mysql:5.6
+    ports :
+      - "3306:3306"
+    volumes :
+      - /data/vpn-mysql/:/var/lib/mysql
+    environment :
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=radius
+    container_name : mysql
+    restart : always
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  l2tp-ipsec:
+    build :
+      context : ./l2tp-ipsec
+      dockerfile : Dockerfile
+    image: l2tp-ipsec:1.0
+    container_name : vpn
+    restart : always
+    env_file:
+      - ./l2tp.env
+    ports:
+      - "500:500/udp"
+      - "4500:4500/udp"
+    privileged: true
+    volumes:
+      - /lib/modules:/lib/modules:ro
+    depends_on:
+      - freeradius
+
+  freeradius:
+    build :
+      context : ./freeradius
+      dockerfile : Dockerfile
+    image: freeradius:1.0
+    container_name : freeradius
+    restart : always
+    env_file:
+      - ./freeradius.env
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    depends_on:
+      - mysql
